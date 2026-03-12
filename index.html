@@ -23,14 +23,13 @@
             background: var(--fondo);
             color: var(--texto);
             margin: 0;
-            /* Usamos 100dvh para que respete las barras del celular */
             height: 100dvh; 
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
-        /* --- LOBBY --- */
+        /* --- PANTALLA DE LOBBY --- */
         #pantallaLobby {
             display: flex;
             flex-direction: column;
@@ -108,7 +107,7 @@
             background: #131c27;
         }
 
-        /* --- LLAMADA Y GRID AUTOMÁTICO --- */
+        /* --- PANTALLA DE LLAMADA --- */
         #pantallaLlamada {
             display: none;
             flex-direction: column;
@@ -128,7 +127,6 @@
             box-sizing: border-box;
         }
 
-        /* ANIMACION DE ENTRADA PARA NUEVOS USUARIOS */
         @keyframes aparecerCard {
             0% { transform: scale(0.6); opacity: 0; }
             80% { transform: scale(1.05); opacity: 1; }
@@ -149,7 +147,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            /* Aplicamos la animación aquí */
             animation: aparecerCard 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
 
@@ -210,7 +207,7 @@
             letter-spacing: 0.5px;
         }
 
-        /* --- CONTROLES INFERIORES PC --- */
+        /* --- BARRA INFERIOR DE CONTROLES --- */
         .barra-inferior {
             background: var(--panel);
             padding: 15px 30px;
@@ -221,15 +218,15 @@
             z-index: 30;
         }
 
-        .grupo-selectores { display: flex; gap: 10px; flex: 1; }
-        .grupo-botones { display: flex; gap: 15px; justify-content: center; flex: 2; }
+        .grupo-selectores { display: flex; gap: 10px; flex: 1.5; }
+        .grupo-botones { display: flex; gap: 10px; justify-content: center; flex: 2; }
         .espaciador-vacio { flex: 1; }
 
         button {
             background: var(--primario);
             color: #000000;
             border: none;
-            padding: 12px 24px;
+            padding: 12px 20px;
             border-radius: 30px; 
             font-size: 13px;
             font-weight: 700;
@@ -246,23 +243,24 @@
         button.apagado { background: #2a3b4c; color: #ffffff; border: 1px solid #4a5c6e; }
         button.salir { background: var(--peligro); color: white; }
         button.salir:hover { background: #d50000; }
+        
+        .boton-grabar { background: #ffffff; color: #000000; }
+        .boton-grabar:hover { background: #e0e0e0; }
 
-        /* --- RESPONSIVE CELULAR (MENU FLOTANTE) --- */
-        @media (max-width: 768px) {
+        /* --- RESPONSIVE PARA CELULARES --- */
+        @media (max-width: 900px) {
             .grid-videos {
-                /* Aseguramos espacio en blanco abajo para que el menú no tape los videos */
-                padding-bottom: 150px; 
+                padding-bottom: 180px; 
                 align-content: start;
             }
             
             .barra-inferior { 
-                /* Convertimos la barra en un panel flotante anclado abajo */
                 position: fixed;
                 bottom: 20px;
                 left: 5%;
                 width: 90%;
                 border-radius: 20px;
-                background: rgba(19, 28, 39, 0.85); /* Efecto cristal */
+                background: rgba(19, 28, 39, 0.85); 
                 backdrop-filter: blur(15px);
                 box-shadow: 0 10px 30px rgba(0,0,0,0.8);
                 border: 1px solid rgba(0, 230, 118, 0.3);
@@ -279,22 +277,25 @@
                 justify-content: space-between; 
             }
             .select-dispositivo { 
-                width: 48%; 
-                font-size: 12px; 
-                padding: 10px; 
+                width: 32%; 
+                font-size: 11px; 
+                padding: 8px; 
             }
             
             .grupo-botones { 
                 width: 100%; 
                 justify-content: space-between; 
-                gap: 8px; 
+                gap: 5px; 
+                flex-wrap: wrap;
             }
             button { 
-                width: 32%; 
+                flex: 1;
+                min-width: 45%;
                 padding: 12px 0; 
                 font-size: 11px; 
-                border-radius: 12px; /* Botones más cuadrados para encajar mejor */
+                border-radius: 12px; 
                 text-align: center;
+                margin-bottom: 5px;
             }
         }
     </style>
@@ -306,7 +307,7 @@
         <div class="tarjeta-lobby">
             <div class="lobby-video-preview">
                 <video id="videoPreview" autoplay playsinline muted></video>
-                <div class="etiqueta-nombre" id="previewNombre">Tú</div>
+                <div class="etiqueta-nombre" id="previewNombre">Tu Camara</div>
             </div>
             <div class="lobby-controles">
                 <input type="text" id="inputNombre" class="input-text" placeholder="Escribe tu nombre" autocomplete="off">
@@ -332,11 +333,16 @@
             <div class="grupo-selectores">
                 <select id="selectMicLlamada" class="select-dispositivo"></select>
                 <select id="selectCamLlamada" class="select-dispositivo"></select>
+                <select id="tipoGrabacion" class="select-dispositivo" style="border-color: var(--primario);">
+                    <option value="camara">Grabar Camara</option>
+                    <option value="pantalla">Grabar Pantalla</option>
+                </select>
             </div>
             
             <div class="grupo-botones">
                 <button id="btnSilenciar">Microfono</button>
                 <button id="btnApagarCam">Camara</button>
+                <button id="btnGrabar" class="boton-grabar">Grabar</button>
                 <button id="btnSalir" class="salir">Salir</button>
             </div>
             

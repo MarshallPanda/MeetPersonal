@@ -1,6 +1,5 @@
 // --- 1. CONFIGURACIÓN DE FIREBASE ---
 const firebaseConfig = {
-    // ¡PEGA AQUÍ TUS DATOS DE FIREBASE!
     apiKey: "AIzaSyAjkWvjMUygnm_hkh2FnT4B6jtC8BRVmZM",
     authDomain: "meetpersonal-c882f.firebaseapp.com",
     databaseURL: "https://meetpersonal-c882f-default-rtdb.firebaseio.com",
@@ -14,7 +13,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const salaRef = db.ref("sala_activa");
 const perfilesRef = db.ref("perfiles");
-const señalesRef = db.ref("señales"); // Nuevo canal para conectar los videos (WebRTC)
+const señalesRef = db.ref("señales");
 
 const miIdUnico = "usuario_" + Math.random().toString(36).substr(2, 9);
 
@@ -42,9 +41,8 @@ let fotoBase64 = "";
 let camaraActiva = true;
 let microActivo = true;
 
-// WebRTC Variables
 const servidoresICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-let conexionesRTC = {}; // Guarda la conexión de video con cada usuario
+let conexionesRTC = {}; 
 
 // --- 3. LÓGICA DEL LOBBY ---
 inputNombre.addEventListener('blur', () => {
@@ -82,11 +80,11 @@ async function obtenerDispositivos() {
             const option = document.createElement('option');
             option.value = dispositivo.deviceId;
             if (dispositivo.kind === 'audioinput') {
-                option.text = dispositivo.label || `Micrófono ${selectMicLobby.length + 1}`;
+                option.text = dispositivo.label || `Microfono ${selectMicLobby.length + 1}`;
                 selectMicLobby.appendChild(option.cloneNode(true));
                 selectMicLlamada.appendChild(option);
             } else if (dispositivo.kind === 'videoinput') {
-                option.text = dispositivo.label || `Cámara ${selectCamLobby.length + 1}`;
+                option.text = dispositivo.label || `Camara ${selectCamLobby.length + 1}`;
                 selectCamLobby.appendChild(option.cloneNode(true));
                 selectCamLlamada.appendChild(option);
             }
@@ -109,10 +107,8 @@ async function iniciarStream(audioId, videoId) {
         streamLocal.getAudioTracks()[0].enabled = microActivo;
         streamLocal.getVideoTracks()[0].enabled = camaraActiva;
 
-        // Iniciar detector de audio propio
         iniciarDetectorDeAudio(streamLocal, miIdUnico);
         
-        // Si cambiamos dispositivos en medio de la llamada, actualizar WebRTC
         Object.keys(conexionesRTC).forEach(id => {
             const senderVideo = conexionesRTC[id].getSenders().find(s => s.track.kind === 'video');
             const senderAudio = conexionesRTC[id].getSenders().find(s => s.track.kind === 'audio');
@@ -120,7 +116,7 @@ async function iniciarStream(audioId, videoId) {
             if(senderAudio) senderAudio.replaceTrack(streamLocal.getAudioTracks()[0]);
         });
 
-    } catch (error) { alert("Error al encender cámara/micrófono"); }
+    } catch (error) { alert("Error al encender camara o microfono"); }
 }
 
 window.onload = async () => {
@@ -159,23 +155,18 @@ btnUnirse.onclick = () => {
     escucharSeñalesWebRTC();
 };
 
-// --- 5. CONTROLES ---
+// --- 5. CONTROLES DE LA LLAMADA ---
 btnSilenciar.onclick = () => {
     microActivo = !microActivo;
     streamLocal.getAudioTracks()[0].enabled = microActivo;
-    
-    // Textos limpios sin emojis
     btnSilenciar.innerText = microActivo ? "Microfono" : "Mic Apagado";
     btnSilenciar.classList.toggle("apagado");
-    
     salaRef.child(miIdUnico).update({ microOn: microActivo });
 };
 
 btnApagarCam.onclick = () => {
     camaraActiva = !camaraActiva;
     streamLocal.getVideoTracks()[0].enabled = camaraActiva;
-    
-    // Textos limpios sin emojis
     btnApagarCam.innerText = camaraActiva ? "Camara" : "Cam Apagada";
     btnApagarCam.classList.toggle("apagado");
 
@@ -202,7 +193,6 @@ salaRef.on('child_added', (snapshot) => {
     const nuevoId = snapshot.key;
     const datos = snapshot.val();
     
-    // Limpieza de datos fantasma (Evita los cuadros "undefined")
     if (!datos || !datos.nombre) {
         salaRef.child(nuevoId).remove();
         return; 
@@ -210,7 +200,6 @@ salaRef.on('child_added', (snapshot) => {
 
     if (nuevoId !== miIdUnico) {
         crearTarjetaParticipante(nuevoId, datos, null, false);
-        // Si yo entré antes que el nuevo, yo inicio la conexión WebRTC
         salaRef.child(miIdUnico).once('value', (miSnap) => {
             if(miSnap.exists() && miSnap.val().timestamp < datos.timestamp) {
                 conectarConUsuario(nuevoId);
@@ -291,25 +280,21 @@ function crearTarjetaParticipante(id, datos, stream, esLocal) {
     contenedorParticipantes.appendChild(div);
 }
 
-// --- 7. MAGIA WEBRTC (CONECTAR VIDEOS REALES) ---
+// --- 7. MAGIA WEBRTC ---
 function crearPeerConnection(idDestino) {
     const pc = new RTCPeerConnection(servidoresICE);
     conexionesRTC[idDestino] = pc;
 
-    // Agregar mis pistas de video/audio locales a la conexión
     streamLocal.getTracks().forEach(track => pc.addTrack(track, streamLocal));
 
-    // Cuando recibo el video/audio del otro usuario
     pc.ontrack = (event) => {
         const videoRemoto = document.getElementById('video_' + idDestino);
         if (videoRemoto) {
             videoRemoto.srcObject = event.streams[0];
-            // ¡Iniciamos el detector de ondas para EL OTRO usuario!
             iniciarDetectorDeAudio(event.streams[0], idDestino);
         }
     };
 
-    // Enviar "candidatos" de red por Firebase
     pc.onicecandidate = (event) => {
         if (event.candidate) {
             señalesRef.child(idDestino).child(miIdUnico).child('candidatos').push(event.candidate.toJSON());
@@ -323,7 +308,6 @@ async function conectarConUsuario(idDestino) {
     const pc = crearPeerConnection(idDestino);
     const oferta = await pc.createOffer();
     await pc.setLocalDescription(oferta);
-    // Le envío mi oferta por Firebase
     señalesRef.child(idDestino).child(miIdUnico).set({ oferta: { type: oferta.type, sdp: oferta.sdp }});
 }
 
@@ -333,16 +317,13 @@ function escucharSeñalesWebRTC() {
         const datos = snapshot.val();
 
         if (datos.oferta) {
-            // Alguien me está llamando
             const pc = crearPeerConnection(idRemoto);
             await pc.setRemoteDescription(new RTCSessionDescription(datos.oferta));
             const respuesta = await pc.createAnswer();
             await pc.setLocalDescription(respuesta);
-            // Le envío mi respuesta
             señalesRef.child(idRemoto).child(miIdUnico).set({ respuesta: { type: respuesta.type, sdp: respuesta.sdp }});
         }
         
-        // Escuchar candidatos de red
         señalesRef.child(miIdUnico).child(idRemoto).child('candidatos').on('child_added', (candSnap) => {
             if (conexionesRTC[idRemoto]) {
                 conexionesRTC[idRemoto].addIceCandidate(new RTCIceCandidate(candSnap.val()));
@@ -354,7 +335,6 @@ function escucharSeñalesWebRTC() {
         const idRemoto = snapshot.key;
         const datos = snapshot.val();
         if (datos.respuesta && conexionesRTC[idRemoto]) {
-            // Me contestaron la llamada
             await conexionesRTC[idRemoto].setRemoteDescription(new RTCSessionDescription(datos.respuesta));
         }
     });
@@ -381,9 +361,7 @@ function iniciarDetectorDeAudio(stream, idUsuario) {
         const avatarCont = document.getElementById('avatarContainer_' + idUsuario);
 
         if (container && avatarCont) {
-            // Verifica si el audio está habilitado
             const micHabilitado = stream.getAudioTracks().length > 0 && stream.getAudioTracks()[0].enabled;
-            
             if (promedio > 15 && micHabilitado) {
                 container.classList.add('hablando');
                 avatarCont.classList.add('hablando-avatar');
@@ -396,3 +374,96 @@ function iniciarDetectorDeAudio(stream, idUsuario) {
     }
     detectarVolumen();
 }
+
+// --- 9. SISTEMA DE GRABACIÓN LOCAL ---
+let grabador = null;
+let fragmentosVideo = [];
+const btnGrabar = document.getElementById('btnGrabar');
+const tipoGrabacion = document.getElementById('tipoGrabacion');
+
+btnGrabar.onclick = async () => {
+    if (grabador && grabador.state === "recording") {
+        grabador.stop();
+        btnGrabar.innerText = "Grabar";
+        btnGrabar.style.background = "#ffffff";
+        btnGrabar.style.color = "#000000";
+        return;
+    }
+
+    let streamParaGrabar;
+
+    if (tipoGrabacion.value === "camara") {
+        if (!streamLocal) {
+            alert("Tu camara no esta encendida.");
+            return;
+        }
+        streamParaGrabar = streamLocal;
+    } else {
+        try {
+            const streamPantalla = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            const contextoAudio = new (window.AudioContext || window.webkitAudioContext)();
+            const destinoMezcla = contextoAudio.createMediaStreamDestination();
+            
+            if (streamLocal && streamLocal.getAudioTracks().length > 0) {
+                const fuenteLocal = contextoAudio.createMediaStreamSource(streamLocal);
+                fuenteLocal.connect(destinoMezcla);
+            }
+            
+            if (streamPantalla.getAudioTracks().length > 0) {
+                const fuentePantalla = contextoAudio.createMediaStreamSource(streamPantalla);
+                fuentePantalla.connect(destinoMezcla);
+            }
+            
+            let audioTrack = destinoMezcla.stream.getAudioTracks()[0];
+            let tracksFinales = [streamPantalla.getVideoTracks()[0]];
+            if (audioTrack) tracksFinales.push(audioTrack);
+
+            streamParaGrabar = new MediaStream(tracksFinales);
+
+            streamPantalla.getVideoTracks()[0].onended = () => {
+                if (grabador && grabador.state === "recording") {
+                    grabador.stop();
+                    btnGrabar.innerText = "Grabar";
+                    btnGrabar.style.background = "#ffffff";
+                    btnGrabar.style.color = "#000000";
+                }
+            };
+
+        } catch (error) {
+            alert("Captura de pantalla cancelada o no soportada.");
+            return;
+        }
+    }
+
+    grabador = new MediaRecorder(streamParaGrabar);
+    fragmentosVideo = [];
+
+    grabador.ondataavailable = (evento) => {
+        if (evento.data.size > 0) {
+            fragmentosVideo.push(evento.data);
+        }
+    };
+
+    grabador.onstop = () => {
+        const blobVideo = new Blob(fragmentosVideo, { type: 'video/webm' });
+        const urlVideo = URL.createObjectURL(blobVideo);
+        
+        const enlaceDescarga = document.createElement('a');
+        enlaceDescarga.style.display = 'none';
+        enlaceDescarga.href = urlVideo;
+        enlaceDescarga.download = `Llamada_${new Date().getTime()}.webm`;
+        
+        document.body.appendChild(enlaceDescarga);
+        enlaceDescarga.click();
+        
+        setTimeout(() => { 
+            document.body.removeChild(enlaceDescarga); 
+            window.URL.revokeObjectURL(urlVideo); 
+        }, 100);
+    };
+
+    grabador.start();
+    btnGrabar.innerText = "Detener";
+    btnGrabar.style.background = "#ff1744"; 
+    btnGrabar.style.color = "#ffffff";
+};
