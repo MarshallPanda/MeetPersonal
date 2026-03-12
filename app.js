@@ -163,15 +163,20 @@ btnUnirse.onclick = () => {
 btnSilenciar.onclick = () => {
     microActivo = !microActivo;
     streamLocal.getAudioTracks()[0].enabled = microActivo;
-    btnSilenciar.innerHTML = microActivo ? "Silenciar Mic" : "Activar Mic";
+    
+    // Textos limpios sin emojis
+    btnSilenciar.innerText = microActivo ? "Microfono" : "Mic Apagado";
     btnSilenciar.classList.toggle("apagado");
+    
     salaRef.child(miIdUnico).update({ microOn: microActivo });
 };
 
 btnApagarCam.onclick = () => {
     camaraActiva = !camaraActiva;
     streamLocal.getVideoTracks()[0].enabled = camaraActiva;
-    btnApagarCam.innerHTML = camaraActiva ? "Apagar Camara" : "Prender Camara";
+    
+    // Textos limpios sin emojis
+    btnApagarCam.innerText = camaraActiva ? "Camara" : "Cam Apagada";
     btnApagarCam.classList.toggle("apagado");
 
     const miVideo = document.getElementById('video_' + miIdUnico);
